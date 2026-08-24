@@ -34,7 +34,7 @@ class MazeSolver:
 
         # เกณฑ์ระยะทางสำหรับเซนเซอร์
         self.WALL_THRESHOLD_CM = 25.0  # ระยะที่ถือว่ามีกำแพงอยู่ข้างๆ
-        self.FRONT_LIMIT_CM = 30.0     # ระยะเบรกกำแพงด้านหน้า (cm) (เพิ่มระยะเบรกให้ไกลขึ้น)
+        self.FRONT_LIMIT_CM = 25.0     # ระยะเบรกกำแพงด้านหน้า (cm) (เพิ่มระยะเบรกให้ไกลขึ้น)
         self.MOVE_SPEED = 0.20         # ความเร็วเดินหน้า (ลดลงเพื่อไม่ให้ชนก่อนเซนเซอร์อ่านทัน)
 
     def is_target_reached(self, current_x: float, current_y: float, front_tof: float) -> bool:
@@ -92,19 +92,10 @@ class MazeSolver:
         # ตรรกะตัดสินใจเดินเขาวงกตด้วยกฎมือขวา (Right-Hand Rule)
         # --------------------------------------------------------------------
         
-        can_move_forward = front_tof > self.FRONT_LIMIT_CM
-
-        # เงื่อนไข A: ทางขวาว่าง (ไม่มีกำแพงขวา: sharp_right > 25 cm) -> ให้ความสำคัญกับการเลี้ยว/สไลด์ขวาก่อน
+        # 1. เช็คด้านขวา ถ้าขวาว่างให้เลี้ยวขวา (กรณีที่เซนเซอร์มองเห็นทางแยกทันที)
         if sharp_right > self.WALL_THRESHOLD_CM:
-            # *** เงื่อนไขสำคัญมาก *** : จะเลี้ยว/สไลด์เข้าทางแยกขวาได้ต่อเมื่อ IR หลังขวาส่งค่า 0 (พ้นกำแพงขวาแล้ว) 
-            # หรือถ้าข้างหน้าตัน (เดินต่อไม่ได้แล้ว) ให้ทำการสไลด์เลี้ยวขวาเลย
-            if rear_ir_r == 0 or not can_move_forward:
-                print("[MazeSolver] พบทางแยกขวาเปิด (ท้ายพ้นกำแพง หรือ หน้าตัน) -> สไลด์เลี้ยวขวา")
-                robot_controller.stop()
-                robot_controller.strafe_right(speed=0.35, distance=0.30)
-            else:
-                print("[MazeSolver] พบทางขวาว่าง แต่ท้ายยังไม่พ้นกำแพง (IR หลังขวา != 0) -> ขยับเดินหน้าต่ออีกนิด")
             print("[MazeSolver] พบทางแยกขวาเปิดจากเซนเซอร์ด้านข้าง -> เลี้ยวขวา")
+            robot_controller.stop()
             robot_controller.turn_right_90()
             robot_controller.move_forward_distance(0.2)
             
@@ -136,7 +127,7 @@ class MazeSolver:
                 return self.STATE_NAVIGATING
                 
             # --- สเตป 3: ทางตันทุกด้าน (Dead End) ---
-            print(" -> ซ้ายก็ตัน! เป็นทางตัน (Dead End) หมุนขวา 90 องศาเพื่อกลับหลังหัน")
-            robot_controller.turn_right_90()
+            print(" -> ซ้ายก็ตัน! เป็นทางตัน (Dead End) หมุนซ้าย 90 องศาเพื่อกลับหลังหัน")
+            robot_controller.turn_left_90()
             
         return self.STATE_NAVIGATING

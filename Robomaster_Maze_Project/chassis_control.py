@@ -39,7 +39,7 @@ class RobotController:
         self._last_error = 0.0
         self._integral = 0.0
         self._last_time = time.time()
-        self._target_gap = 10.0  # ระยะเป้าหมายจากกำแพงแต่ละฝั่ง (cm)
+        self._target_gap = 15.0  # ระยะเป้าหมายจากกำแพงแต่ละฝั่ง (เพิ่มเป็น 15cm ไม่ให้ชิดซ้าย/ขวาเกินไป)
 
         # ข้อมูลการติดตามเส้นทาง (Odometry Trajectory Tracking)
         self._trajectory_lock = threading.Lock()
@@ -112,8 +112,12 @@ class RobotController:
             error = 0.0
             self._integral = 0.0
 
-        # คำนวณ P, I, D Components
-        p_term = self.kp * error
+        # เพิ่ม Deadband: ถ้าระยะคลาดเคลื่อนไม่เกิน 3 cm ถือว่าหุ่นอยู่ตรงกลางแล้ว ไม่ต้องขยับแกว่งซ้ายขวา
+        if abs(error) < 3.0:
+            error = 0.0
+
+        # คำนวณ P, I, D Components (ปรับลด kp ลงในโค้ดคำนวณเลยเพื่อให้แก้ศูนย์นิ่มนวลขึ้น)
+        p_term = (self.kp * 0.25) * error  # ลดความไว (kp) ลง 4 เท่า ป้องกันอาการส่ายเป็นงู
         self._integral += error * dt
         # Clamp integral เพื่อป้องกัน Integral Windup
         self._integral = max(-5.0, min(5.0, self._integral))
@@ -128,8 +132,9 @@ class RobotController:
         # รวมผลลัพธ์ Vy (ความเร็วสไลด์ซ้าย-ขวา)
         vy = p_term + i_term + d_term
 
-        # จำกัดความเร็วสไลด์ให้อยู่ในช่วงที่ปลอดภัย (-0.35 ถึง +0.35 m/s)
-        vy = max(-0.35, min(0.35, vy))
+        # จำกัดความเร็วสไลด์ให้อยู่ในช่วงที่พอดี (-0.15 ถึง +0.15 m/s)
+        # ถ้าตั้งน้อยไป (0.08) หุ่นจะสู้แรงไถลธรรมชาติไม่ได้ ทำให้เป๋เข้ากำแพง
+        vy = max(-0.15, min(0.15, vy))
         return vy
 
     # ------------------------------------------------------------------------
